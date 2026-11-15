@@ -6,7 +6,6 @@ import android.hardware.usb.*;
 import android.net.Uri;
 import android.os.*;
 import android.provider.DocumentsContract;
-import android.util.Base64;
 import android.view.*;
 import android.webkit.*;
 import org.json.*;
@@ -21,6 +20,7 @@ public final class MainActivity extends Activity {
     private WebView web;private UsbManager usb;private UsbDevice candidate;private AppMedia media;
     private volatile Session session;private volatile boolean foreground,connecting,destroyed,paused,waitingPicker,cancelBatch;
     private volatile String visiblePage="connect";
+    private volatile int targetFps=24;
     private PendingBatch pendingBatch;
     private final ArrayDeque<String> diagnostics=new ArrayDeque<String>();
     private static JSONObject json(Object...pairs){JSONObject j=new JSONObject();try{for(int i=0;i<pairs.length;i+=2)j.put((String)pairs[i],pairs[i+1]);}catch(JSONException e){throw new IllegalArgumentException(e);}return j;}
@@ -45,6 +45,11 @@ public final class MainActivity extends Activity {
                     if("/index.html".equals(u.getPath())||"/".equals(u.getPath()))return new WebResourceResponse("text/html","UTF-8",getAssets().open("index.html"));
                     if(u.getPath()!=null&&u.getPath().matches("/media/[a-f0-9]{32}")){
                         InputStream in=media.open(u.getLastPathSegment());if(in!=null)return new WebResourceResponse("image/jpeg",null,in);
+                    }
+                    if(u.getPath()!=null&&u.getPath().matches("/live/[a-f0-9]{32}/[0-9]{1,19}\\.jpg")){
+                        Session s=session;List<String> parts=u.getPathSegments();
+                        if(s!=null){long seq=Long.parseLong(parts.get(2).replace(".jpg",""));LatestFrames.Frame frame=s.frames.image(parts.get(1),seq);
+                            if(frame!=null)return new WebResourceResponse("image/jpeg",null,200,"OK",Collections.singletonMap("Cache-Control","no-store"),new ByteArrayInputStream(frame.jpeg));}
                     }
                 }catch(Exception ignored){}return missing();
             }
@@ -83,18 +88,34 @@ public final class MainActivity extends Activity {
         @JavascriptInterface public void saveMany(final String handles){main.post(new Runnable(){public void run(){chooseFolder(handles);}});}
         @JavascriptInterface public void cancelBatch(){cancelBatch=true;}
         @JavascriptInterface public void liveStart(){submit("เปิด USB Live View",new Job(){public void run(Session s)throws Exception{
-            try{s.camera.startLive();s.liveSince=SystemClock.elapsedRealtime();s.liveToken=s.generation+":"+(++s.liveSequence);s.frameWaiting=false;s.emitLive("waiting","รอเฟรมจากกล้อง");}
+            try{s.camera.startLive();s.liveSince=SystemClock.elapsedRealtime();s.liveToken=UUID.randomUUID().toString().replace("-","");s.frames.begin(s.liveToken);s.receivedCount=0;s.receiveWindow=s.liveSince;s.receivedFps=-1;s.emitLive("waiting","รอเฟรมจากกล้อง");}
             catch(Exception e){s.emitLive("stopped","เปิด Live View ไม่สำเร็จ");throw e;}
         }});}
         @JavascriptInterface public void liveStop(){submit("หยุดรับ Live View",new Job(){public void run(Session s)throws Exception{s.stopLive();}});}
-        @JavascriptInterface public void frameAck(String id){Session s=session;if(s!=null&&id.equals(s.pendingFrame))s.frameWaiting=false;}
+        @JavascriptInterface public void frameNext(String stream,String sequence){
+            Session s=session;if(s==null)return;try{LatestFrames.Frame frame=s.frames.request(stream,Long.parseLong(sequence));if(frame!=null)s.deliver(frame);}catch(NumberFormatException ignored){}
+        }
+        @JavascriptInterface public void frameAck(String id){
+            Session s=session;if(s==null)return;int split=id.lastIndexOf(':');if(split<0)return;
+            try{LatestFrames.Frame f=s.frames.image(id.substring(0,split),Long.parseLong(id.substring(split+1)));long now=SystemClock.elapsedRealtime();
+                if(f!=null&&now-s.lastStats>500){s.lastStats=now;s.lastPresentAge=now-f.receivedAt;emitFor(s,json("type","frameStats","stream",f.stream,"ageMs",s.lastPresentAge,"usbMs",f.usbMs,"receivedFps",s.receivedFps));}}
+            catch(NumberFormatException ignored){}
+        }
+        @JavascriptInterface public void liveRate(int fps){if(fps==12||fps==24)targetFps=fps;}
+        @JavascriptInterface public void settings(){submit("อ่านตัวเลือกกล้อง",new Job(){public void run(Session s)throws Exception{s.poll();s.settings();}});}
+        @JavascriptInterface public void changeSetting(final int property,final String code){submit("ปรับ "+ExposureValues.name(property),new Job(){public void run(Session s)throws Exception{
+            long value;try{value=Long.parseLong(code);}catch(NumberFormatException e){throw new EosCamera.Notice("ค่าที่เลือกไม่ถูกต้อง");}
+            boolean confirmed=s.camera.changeSetting(property,value);s.values();s.settings();
+            message(confirmed?ExposureValues.name(property)+" = "+ExposureValues.label(property,value)+" · กล้องยืนยันแล้ว":"กล้องรับคำสั่งแล้ว แต่ยังไม่ยืนยันค่าใหม่ กดอ่านค่าอีกครั้ง");
+        }});}
         @JavascriptInterface public void page(final String name){
             if(!Arrays.asList("connect","shoot","photos","monitor").contains(name))return;visiblePage=name;
             final Session s=session;if(s!=null&&!"monitor".equals(name))worker.execute(new Runnable(){public void run(){if(s==session&&s.camera.live)try{s.stopLive();}catch(Exception e){error(s,e,"หยุด Live View");}}});
         }
         @JavascriptInterface public void diagnostics(){main.post(new Runnable(){public void run(){
-            StringBuilder b=new StringBuilder("600D Companion 0.2.0\nAndroid "+Build.VERSION.RELEASE+" / "+Build.MANUFACTURER+" "+Build.MODEL+"\n");
+            StringBuilder b=new StringBuilder("600D Companion 0.3.0\nAndroid "+Build.VERSION.RELEASE+" / "+Build.MANUFACTURER+" "+Build.MODEL+"\n");
             Session s=session;b.append("foreground=").append(foreground).append(" page=").append(visiblePage).append('\n');if(s!=null)b.append("last USB operation=").append(s.lastOperation).append(" awaitingResponse=").append(s.operationPending).append('\n');
+            if(s!=null)b.append("targetFps=").append(targetFps).append(" receivedFps=").append(s.receivedFps).append(" usbFrameMs=").append(s.lastUsbMs).append(" postReceiveDisplayMs=").append(s.lastPresentAge).append('\n');
             synchronized(MainActivity.this){for(String line:diagnostics)b.append(line).append('\n');}
             android.content.ClipboardManager c=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);c.setPrimaryClip(ClipData.newPlainText("600D diagnostics",b.toString()));message("คัดลอกสถานะแล้ว ไม่มี serial number หรือข้อมูลภาพในข้อความ");
         }});}
@@ -110,7 +131,7 @@ public final class MainActivity extends Activity {
     }
     private void open(final UsbDevice d){worker.execute(new Runnable(){public void run(){Session s=null;
         try{s=new Session(d);session=s;s.start();if(s!=session||s.cancelled)return;
-            emitFor(s,json("type","connected","model",s.info.model,"firmware",s.info.version,"capture",s.camera.canCapture(),"live",s.camera.canLive()));s.values();
+            emitFor(s,json("type","connected","model",s.info.model,"firmware",s.info.version,"capture",s.camera.canCapture(),"live",s.camera.canLive()));s.values();s.settingsDigest="";s.settings();
         }catch(Exception e){if(s!=null){s.connection.close();if(session==s)session=null;}message("เชื่อมต่อไม่สำเร็จ: "+e.getMessage());emit(json("type","disconnected","text","เชื่อมต่อไม่สำเร็จ"));}
         finally{connecting=false;emit(json("type","busy","value",false));}
     }});}
@@ -130,12 +151,12 @@ public final class MainActivity extends Activity {
     }
     private void drop(Session s,String reason){if(s!=session)return;session=null;s.cancelled=true;cancelBatch=true;s.connection.close();connecting=false;emit(json("type","disconnected","text",reason));log(reason);}
     private final Runnable heartbeat=new Runnable(){public void run(){
-        if(destroyed)return;Session s=session;
+        if(destroyed)return;Session s=session;long started=SystemClock.elapsedRealtime();
         try{if(s!=null&&!s.cancelled&&!connecting&&!foreground&&!waitingPicker&&!paused)s.tick();}
         catch(Ptp.Rejected e){if(e.code!=0x2019&&e.code!=0xa102)error(s,e,"อ่านสถานะ");}
         catch(EosCamera.Notice e){if(s!=null){try{s.stopLive();}catch(Exception cleanup){log("Live cleanup: "+cleanup.getMessage());}error(s,e,"Live View");}}
         catch(Exception e){if(s!=null)error(s,e,"USB");}
-        finally{if(!destroyed)worker.schedule(this,s!=null&&s.camera!=null&&s.camera.live?150:300,TimeUnit.MILLISECONDS);}
+        finally{if(!destroyed)worker.schedule(this,s!=null&&s.camera!=null&&s.camera.live?LatestFrames.delayMs(targetFps,SystemClock.elapsedRealtime()-started,s.lastFrameReady):300,TimeUnit.MILLISECONDS);}
     }};
     private void disconnectCamera(){
         if(foreground||waitingPicker||connecting){message("รอให้งานเสร็จก่อน หรือหยุดหลังไฟล์ปัจจุบัน");return;}
@@ -145,8 +166,9 @@ public final class MainActivity extends Activity {
     private final class Session{
         final UsbDevice device;final UsbDeviceConnection connection;final UsbInterface iface;final Ptp ptp;
         final String generation=UUID.randomUUID().toString();Ptp.Device info;EosCamera camera;
-        volatile boolean cancelled,frameWaiting,operationPending;volatile String pendingFrame="",lastOperation="";boolean opened,remote,eventMode;
-        long lastPoll,lastKeep,lastFrame,liveSince,frameNumber,liveSequence;String liveToken="";int timeout=15000,scanCursor;int[] allHandles=new int[0];
+        volatile boolean cancelled,operationPending;volatile String lastOperation="";boolean opened,remote,eventMode,lastFrameReady;
+        final LatestFrames frames=new LatestFrames();volatile double receivedFps=-1;volatile long lastUsbMs,lastPresentAge,lastStats;
+        long lastPoll,lastKeep,lastFrame,liveSince,receiveWindow,receivedCount;String liveToken="",settingsDigest="";int timeout=15000,scanCursor;int[] allHandles=new int[0];
         final Map<Integer,Ptp.Photo> catalog=new LinkedHashMap<Integer,Ptp.Photo>();
         final Map<Integer,File> originals=new HashMap<Integer,File>();final Map<Integer,String> fullUrls=new HashMap<Integer,String>();
         final Map<Integer,String> thumbs=new HashMap<Integer,String>();final ArrayDeque<Integer> thumbQueue=new ArrayDeque<Integer>();
@@ -173,21 +195,30 @@ public final class MainActivity extends Activity {
             poll();log(info.model+" firmware "+info.version);
         }
         void values(){JSONObject v=json("type","values","cameraBusy",camera.status==1,"recording",camera.recording());
+            JSONObject labels=new JSONObject();for(int p:ExposureValues.PROPERTIES)if(camera.properties.containsKey(p))try{labels.put(Integer.toHexString(p),ExposureValues.label(p,camera.properties.get(p)));}catch(JSONException ignored){}
+            try{v.put("exposure",labels);}catch(JSONException ignored){}
             for(Map.Entry<Integer,Long> e:camera.properties.entrySet())try{v.put(Integer.toHexString(e.getKey()),e.getValue());}catch(JSONException ignored){}emitFor(this,v);}
-        void poll()throws IOException{camera.poll();lastPoll=SystemClock.elapsedRealtime();values();}
+        void settings(){
+            JSONArray a=new JSONArray();for(int p:ExposureValues.PROPERTIES){JSONArray choices=new JSONArray();List<Long> values=camera.available.get(p);
+                if(values!=null)for(long code:values)choices.put(json("value",code,"label",ExposureValues.label(p,code)));
+                String reason=camera.settingBlock(p);a.put(json("property",p,"name",ExposureValues.name(p),"value",camera.properties.containsKey(p)?camera.properties.get(p):JSONObject.NULL,"enabled",reason==null,"reason",reason==null?"":reason,"choices",choices));}
+            JSONObject data=json("type","settings","items",a);String digest=data.toString();if(!digest.equals(settingsDigest)){settingsDigest=digest;emitFor(this,data);}
+        }
+        void poll()throws IOException{camera.poll();lastPoll=SystemClock.elapsedRealtime();values();settings();}
+        void deliver(LatestFrames.Frame frame){emitFor(this,json("type","frame","id",frame.stream+":"+frame.sequence,"stream",frame.stream,"sequence",frame.sequence,"url","https://companion.local/live/"+frame.stream+"/"+frame.sequence+".jpg","width",frame.width,"height",frame.height,"usbMs",frame.usbMs));}
         void emitLive(String state,String text){emitFor(this,json("type","live","state",state,"text",text,"stream",liveToken));}
-        void stopLive()throws IOException{frameWaiting=false;try{camera.stopLive();}finally{emitLive("stopped","หยุดรับภาพแล้ว");}}
+        void stopLive()throws IOException{frames.stop();try{camera.stopLive();}finally{emitLive("stopped","หยุดรับภาพแล้ว");}}
         void tick()throws IOException{
             long now=SystemClock.elapsedRealtime();if(now-lastPoll>(camera.live?500:1500))poll();
             if(camera.live&&"monitor".equals(visiblePage)){
                 if(now-lastKeep>10000&&info.operations.contains(0x911d)){call(0x911d);lastKeep=now;}
-                if(frameWaiting&&now-lastFrame<2500)return;frameWaiting=false;
-                byte[] jpeg;timeout=3000;try{jpeg=camera.frame();}finally{timeout=15000;}
+                lastFrameReady=false;long requested=SystemClock.elapsedRealtime();
+                byte[] jpeg;timeout=3000;try{jpeg=camera.frame();}finally{timeout=15000;}lastUsbMs=SystemClock.elapsedRealtime()-requested;
                 if(jpeg==null){if(now-liveSince>3000&&now-lastFrame>2000){emitLive("waiting","กล้องยังไม่ส่งเฟรม อาจกำลังถ่ายหรือบันทึกวิดีโอ");lastFrame=now;}return;}
                 if(jpeg.length>2*1024*1024)throw new EosCamera.Notice("เฟรม Live View ใหญ่เกิน 2 MiB");
-                int[] size=dimensions(jpeg);if(size[0]<=0||size[1]<=0||size[0]*(long)size[1]>12000000)throw new EosCamera.Notice("ขนาดเฟรม Live View ไม่รองรับ");
-                lastFrame=now;frameWaiting=true;pendingFrame=generation+":"+(++frameNumber);
-                emitFor(this,json("type","frame","id",pendingFrame,"stream",liveToken,"data",Base64.encodeToString(jpeg,Base64.NO_WRAP),"width",size[0],"height",size[1]));
+                int[] size=LatestFrames.dimensions(jpeg);lastFrame=SystemClock.elapsedRealtime();lastFrameReady=true;receivedCount++;
+                if(lastFrame-receiveWindow>=1000){receivedFps=receivedCount*1000.0/(lastFrame-receiveWindow);receivedCount=0;receiveWindow=lastFrame;}
+                LatestFrames.Frame offer=frames.publish(liveToken,jpeg,size[0],size[1],lastFrame,lastUsbMs);if(offer!=null)deliver(offer);
             }else if("photos".equals(visiblePage)&&!thumbQueue.isEmpty()){
                 int h=thumbQueue.removeFirst();Ptp.Photo p=catalog.get(h);if(p==null)return;
                 try{ByteArrayOutputStream b=new ByteArrayOutputStream();Ptp.Reply r=ptp.transfer(0x100a,b,2*1024*1024,h);r.requireOK();byte[] bytes=b.toByteArray();jpeg(bytes);

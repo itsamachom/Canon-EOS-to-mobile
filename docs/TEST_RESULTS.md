@@ -1,17 +1,17 @@
-# Validation — 0.2.0-prototype / 15 November 2026
+# Validation — 0.3.0-prototype
 
-## Passed on the computer
+## Computer checks
 
-- 41 PTP assertions: fragmented/coalesced/zero-length reads, partial writes, transaction IDs, streamed JPEG-sized payloads, strict bounds, EOS uint16/padding handling, property data-out transactions and diagnostic observations.
-- 40 EOS/cache assertions: two captures without reconnect, P/Tv/Av/M, busy-ready waiting, no automatic shutter retry, full/half cleanup after failure, drain between release operations, forbidden mode guard, EVF start/restore/partial rollback, movie-mode busy setup, preserve external changes and recording/unknown-state EVF, frame segments 1/9-JPEG/11, busy/not-ready frames, reject non-JPEG/invalid lengths, token-only private cache access.
-- 2,000 deterministic malformed datasets handled with bounded parser failures.
-- Chromium/Playwright: four tabs without Guide; immediate shutter state and second explicit capture after completion; 3-column phone grid; progressive thumbnail updates; multi-select payload; folder batch callbacks/cancel-after-file/retained selection; original preview distinct from thumbnail; fit/100%; Live View ACK, stale overlay, late/stale-stream rejection; erase demo data/stop demo timer on real connection; 320/390/600/900 px and landscape 844×390; four screenshots.
-- Compile against Android API 35 using ECJ 3.39.0, dex/package with build-tools 35.0.0. APK v2/v3 signatures verified.
-- Certificate SHA-256 matches published 0.1.1. VersionCode increases 2→3. No private key in Git/source archive.
-- No INTERNET, CAMERA, audio, or broad storage permission. App-local WebView HTTPS resources are served by an interceptor; document export uses Android folder selection.
+- PTP tests retain fragmentation/coalescing/ZLP, transaction, streaming, rejected-reply and bound checks. New coverage crosses a 64 KiB data/response boundary using the reused buffer and decodes byte-width EV events without reading padding.
+- Existing EOS/cache tests cover repeat shutter, cleanup, busy/ready, mode guards, live EVF ownership/restore and non-JPEG rejection.
+- New Live/settings tests: actual advertised enumeration type/stride/bounds, stale enum removal, rejected/unadvertised/arbitrary writes, P/Tv/Av/M/recording/busy guards, event-confirmed versus unconfirmed values, ISO/Av/Tv/EV labels; latest-only mailbox across 100 producer frames with a stalled consumer; immutable in-flight bytes; stream reset; work-budget pacing; bounded JPEG SOF dimensions.
+- Browser tests: exposure choices, disabled modes, emitted setting command, no optimistic value, confirmed readback/HUD; app-local live URLs, next-frame request, display ACK, actual supplied telemetry and target-rate selector; stale/late frame and demo isolation; existing gallery/multi-select/full preview/batch cancellation/capture flows; five viewport sizes and four demo screenshots.
+- APK compiles against API 35 with ECJ 3.39.0/build-tools 35.0.0, v2/v3 signatures verify, certificate matches published 0.1.1 and 0.2.0; versionCode 4. No private key in source archive.
 
-## Not verified
+Exact assertion counts are recorded in BUILD_INFO from the successful test outputs. Screenshots and browser data are marked simulations, not Canon captures or device performance measurements.
 
-Physical Android or emulator runtime of 0.2.0; actual resolution of the reported one-shot issue; USB permission/OTG/lifecycle; real camera AF/busy/file completion; real multiple JPEG transfers; original JPEG quality; Android document provider behavior and failed-write cleanup; EVF property acceptance/restore; still/movie/REC frame formats; latency/FPS; ML compatibility.
+## Still needs device testing
 
-Fake transports and browser bridge mocks are not a camera test. Screenshots contain marked synthetic scenes, not photographs or actual Canon performance measurements. Seven compatibility deprecation warnings remain in the Android Activity; no compiler errors or disabled verification checks.
+Real Android permissions/WebView interceptor/runtime/document picker/lifecycle; camera option-list events; actual ISO/aperture/shutter/EV write/readback; USB JPEG generation/transfer and phone rendering rates; end-to-end visual latency; streaming in Movie/REC modes; non-JPEG movie formats; ML coexistence.
+
+A 24 fps budget test is not evidence that the 600D or phone achieves 24 fps. A 0.2.0 hardware report of lag is the motivation, not a hardware validation of this release. The prior single-shot symptom still needs regression testing on the user's camera.

@@ -7,8 +7,8 @@ public final class Ptp {
     public interface Wire { int read(byte[] b) throws IOException; int write(byte[] b,int off,int n) throws IOException; }
     public static final int OK=0x2001;
     private final Wire wire;
-    private byte[] pending=new byte[0];
-    private int cursor,transaction;
+    private final byte[] pending=new byte[16384];
+    private int cursor,pendingEnd,transaction;
     public interface Observer { default void start(int operation,int transaction){} void transaction(int operation,int code,long durationMs); }
     private Observer observer;
     public void setObserver(Observer observer){this.observer=observer;}
@@ -27,16 +27,19 @@ public final class Ptp {
         for(int i=0;i<args.length;i++)put(b,12+i*4,args[i],4);return b;
     }
     private byte[] readExactly(int n)throws IOException{
-        byte[] out=new byte[n];int done=0,emptyPackets=0;
+        byte[] out=new byte[n];readInto(out,0,n);return out;
+    }
+    private void readInto(byte[] out,int offset,int n)throws IOException{
+        int done=0,emptyPackets=0;
         while(done<n){
-            if(cursor==pending.length){
-                byte[] packet=new byte[16384];int got=wire.read(packet);
+            if(cursor==pendingEnd){
+                int got=wire.read(pending);
                 if(got==0&&++emptyPackets<=3)continue;
-                if(got<=0||got>packet.length)throw new IOException("USB ขาดการตอบสนอง กรุณาเชื่อมต่อใหม่");
-                emptyPackets=0;pending=Arrays.copyOf(packet,got);cursor=0;
+                if(got<=0||got>pending.length)throw new IOException("USB ขาดการตอบสนอง กรุณาเชื่อมต่อใหม่");
+                emptyPackets=0;pendingEnd=got;cursor=0;
             }
-            int take=Math.min(n-done,pending.length-cursor);System.arraycopy(pending,cursor,out,done,take);cursor+=take;done+=take;
-        }return out;
+            int take=Math.min(n-done,pendingEnd-cursor);System.arraycopy(pending,cursor,out,offset+done,take);cursor+=take;done+=take;
+        }
     }
     public static final class Reply{
         public int code;public byte[] data=new byte[0];public int[] params=new int[0];public long bytes;
@@ -73,9 +76,10 @@ public final class Ptp {
             long size=length-12;
             if(type==2&&code==op&&!hadData&&outbound==null){
                 if(size>limit)throw new IOException("ไฟล์ใหญ่เกินขอบเขตต้นแบบ กรุณาเชื่อมต่อใหม่");
-                hadData=true;ByteArrayOutputStream memory=sink==null?new ByteArrayOutputStream():null;OutputStream target=sink==null?memory:sink;
-                for(long left=size;left>0;){byte[] block=readExactly((int)Math.min(16384,left));target.write(block);left-=block.length;}
-                if(memory!=null)result.data=memory.toByteArray();result.bytes=size;
+                hadData=true;
+                if(sink==null)result.data=readExactly((int)size);
+                else {byte[] block=new byte[16384];for(long left=size;left>0;){int take=(int)Math.min(block.length,left);readInto(block,0,take);sink.write(block,0,take);left-=take;}}
+                result.bytes=size;
             }else if(type==3&&size<=20&&size%4==0){
                 result.code=code;byte[] body=readExactly((int)size);result.params=new int[body.length/4];
                 for(int i=0;i<result.params.length;i++)result.params[i]=(int)u32(body,i*4);
@@ -119,9 +123,10 @@ public final class Ptp {
         while(p<b.length){
             if(b.length-p<8)throw new IOException("EOS event ขาดหาย");long size=u32(b,p),type=u32(b,p+4);
             if(size<8||size>b.length-p)throw new IOException("EOS event ไม่ถูกต้อง");
-            if(type==0xc189&&size>=14){int property=(int)u32(b,p+8);
+            if(type==0xc189&&size>=13){int property=(int)u32(b,p+8);
                 boolean word=(property>=0xd101&&property<=0xd107)||property==0xd109||property==0xd1b1||property==0xd1b8;
-                values.put(property,word||size<16?(long)u16(b,p+12):u32(b,p+12));
+                if(property==0xd104)values.put(property,(long)(b[p+12]&255));
+                else if(size>=14)values.put(property,word||size<16?(long)u16(b,p+12):u32(b,p+12));
             }p+=(int)size;
         }return values;
     }

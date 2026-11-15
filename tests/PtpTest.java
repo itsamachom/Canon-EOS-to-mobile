@@ -21,6 +21,7 @@ public final class PtpTest{
         for(int fragment:new int[]{1,7,16384}){Wire w=new Wire(join(data(0x1001,0,payload),Ptp.container(3,Ptp.OK,0)),fragment);Ptp.Reply r=new Ptp(w).call(0x1001);r.requireOK();check(Arrays.equals(r.data,payload),"fragmented/coalesced "+fragment);check(w.output.size()==12,"partial writes "+fragment);}
         Wire stream=new Wire(join(data(0x1009,0,payload),Ptp.container(3,Ptp.OK,0)),3);ByteArrayOutputStream sink=new ByteArrayOutputStream();
         check(new Ptp(stream).transfer(0x1009,sink,5,1).bytes==5&&Arrays.equals(sink.toByteArray(),payload),"streamed payload");
+        byte[] large=new byte[65541];new Random(24).nextBytes(large);Wire boundary=new Wire(join(data(0x1009,0,large),Ptp.container(3,Ptp.OK,0)),16384);Ptp.Reply bulk=new Ptp(boundary).call(0x1009,1);check(bulk.code==Ptp.OK&&Arrays.equals(bulk.data,large),"reused USB buffer across large data/response boundary");
         final Wire afterZlp=new Wire(Ptp.container(3,Ptp.OK,0),100);
         Ptp.Wire zlp=new Ptp.Wire(){boolean first=true;public int read(byte[] b){if(first){first=false;return 0;}return afterZlp.read(b);}public int write(byte[] b,int o,int n){return afterZlp.write(b,o,n);}};
         check(new Ptp(zlp).call(0x1001).code==Ptp.OK,"USB zero-length terminator");
@@ -42,6 +43,8 @@ public final class PtpTest{
         check(Ptp.photo(1,new byte[53])==null,"non JPEG ignored");byte[] photo=new byte[52];Ptp.put(photo,4,0x3801,2);Ptp.put(photo,8,5000,4);
         Ptp.Photo image=Ptp.photo(1,join(photo,string("../IMG_0001.JPG")));check(image!=null&&!image.name.contains("/"),"filename sanitized");
         byte[] padded=event.clone();padded[14]=(byte)0xef;padded[15]=(byte)0xbe;check(Ptp.properties(padded).get(0xd103)==72L,"EOS word values ignore padding");
+        byte[] ev=event.clone();Ptp.put(ev,8,0xd104,4);Ptp.put(ev,12,0xabcd80fdL,4);check(Ptp.properties(ev).get(0xd104)==253L,"EV decodes uint8 and ignores padding");
+        byte[] byteEvent=Arrays.copyOf(ev,13);Ptp.put(byteEvent,0,13,4);check(Ptp.properties(byteEvent).get(0xd104)==253L,"unpadded uint8 EV event accepted");
         byte[] small=Arrays.copyOf(event,14);Ptp.put(small,0,14,4);check(Ptp.properties(small).get(0xd103)==72L,"16-bit EOS property");
         Map<Integer,Long> settings=new HashMap<Integer,Long>();check(CameraRules.captureBlock(settings)!=null,"unknown settings blocked");
         for(int[] v:new int[][]{{0xd11c,2},{0xd108,3},{0xd105,3},{0xd106,0},{0xd102,0x70},{0xd11b,42}})settings.put(v[0],(long)v[1]);check(CameraRules.captureBlock(settings)==null,"single MF card capture allowed");settings.put(0xd108,0L);check(CameraRules.captureBlock(settings)==null,"camera AF allowed");settings.put(0xd108,3L);

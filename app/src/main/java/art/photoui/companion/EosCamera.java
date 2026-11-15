@@ -8,6 +8,7 @@ public final class EosCamera {
     public interface Clock{long now();void pause(long ms)throws IOException;}
     public static final class Notice extends IOException{private static final long serialVersionUID=1L;public Notice(String s){super(s);}}
     public final Map<Integer,Long> properties=new HashMap<Integer,Long>();
+    public final Map<Integer,List<Long>> available=new HashMap<Integer,List<Long>>();
     public final Set<Integer> operations;
     private final Port port;private final Clock clock;
     public int status=-1,objectsAdded,lastFrameType;
@@ -24,6 +25,17 @@ public final class EosCamera {
         for(int p=0;p<bytes.length;){int n=(int)Ptp.u32(bytes,p);long type=Ptp.u32(bytes,p+4);
             if(type==0xc18b){if(n<12)throw new IOException("EOS camera status สั้นเกินไป");status=(int)Ptp.u32(bytes,p+8);}
             if(type==0xc181||type==0xc1a7){if(n<12)throw new IOException("EOS object event สั้นเกินไป");objectsAdded++;}
+            if(type==0xc18a){
+                if(n<20)throw new IOException("EOS option list header ขาดหาย");int property=(int)Ptp.u32(bytes,p+8);
+                if(ExposureValues.supported(property))available.remove(property);
+                if(ExposureValues.supported(property)&&Ptp.u32(bytes,p+12)==3){
+                    long count=Ptp.u32(bytes,p+16);if(count>1024||count>(n-20)/4)throw new IOException("EOS option list length ไม่ถูกต้อง");
+                    List<Long> values=new ArrayList<Long>();for(int i=0;i<count;i++){
+                        long v=property==0xd104?(bytes[p+20+i*4]&255L):(long)Ptp.u16(bytes,p+20+i*4);
+                        if(ExposureValues.label(property,v)!=null&&!values.contains(v))values.add(v);
+                    }available.put(property,values);
+                }
+            }
             p+=n;
         }
     }
@@ -57,6 +69,27 @@ public final class EosCamera {
         }
     }
     public boolean recording(){Long r=properties.get(0xd1b8);return r!=null&&(r==3||r==4);}
+    public String settingBlock(int property){
+        if(!ExposureValues.supported(property))return "การตั้งค่านี้ยังไม่รองรับ";
+        if(!operations.contains(0x9110))return "กล้องไม่ประกาศรองรับการเปลี่ยนค่า";
+        if(recording()||status==1)return "รอให้กล้องหยุดบันทึกหรือประมวลผลก่อน";
+        Long mode=properties.get(0xd105);if(mode==null||mode<0||mode>3)return "ปรับค่าใน P / Tv / Av / M หมุนโหมดที่ตัวกล้อง";
+        if(property==0xd101&&mode!=2&&mode!=3)return "รูรับแสงปรับได้ใน Av / M";
+        if(property==0xd102&&mode!=1&&mode!=3)return "ชัตเตอร์ปรับได้ใน Tv / M";
+        if(property==0xd104&&mode==3)return "ชดเชย EV ใช้ใน P / Tv / Av";
+        if(!properties.containsKey(property)||!available.containsKey(property)||available.get(property).size()<2)return "กล้องยังไม่ส่งตัวเลือกที่ปรับได้ ลองอ่านค่าใหม่";
+        return null;
+    }
+    public boolean changeSetting(int property,long value)throws IOException{
+        poll();String reason=settingBlock(property);if(reason!=null)throw new Notice(reason);
+        if(ExposureValues.label(property,value)==null||!available.get(property).contains(value))throw new Notice("ค่านี้ไม่อยู่ในตัวเลือกปัจจุบันของกล้อง");
+        if(Long.valueOf(value).equals(properties.get(property)))return true;
+        // An accepted write is not a confirmed value. Only events update this cache.
+        Ptp.Reply result=port.set(property,value);result.requireOK();
+        if(operations.contains(0x9127)){Ptp.Reply request=port.call(0x9127,property);if(request.code==Ptp.OK)poll();}
+        for(int i=0;i<4;i++){poll();if(Long.valueOf(value).equals(properties.get(property)))return true;if(i<3)clock.pause(100);}
+        return false;
+    }
     public void startLive()throws IOException{
         if(live)return;if(!canLive())throw new Notice("กล้องไม่ประกาศรองรับ USB Live View");requestLiveProperties();
         oldMode=properties.get(0xd1b1);oldOutput=properties.get(0xd1b0);
