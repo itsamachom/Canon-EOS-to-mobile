@@ -8,3 +8,5 @@ java -cp build/tests art.photoui.companion.PtpTest | tee build/ptp-tests.txt
 java -cp build/tests art.photoui.companion.EosCameraTest | tee build/eos-tests.txt
 
 java -cp build/tests art.photoui.companion.LiveSettingsTest | tee build/live-settings-tests.txt
+
+node tests/monitor-analysis.cjs | tee build/monitor-analysis-tests.txt

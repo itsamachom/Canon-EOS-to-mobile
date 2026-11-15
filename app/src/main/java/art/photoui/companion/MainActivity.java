@@ -20,7 +20,7 @@ public final class MainActivity extends Activity {
     private WebView web;private UsbManager usb;private UsbDevice candidate;private AppMedia media;
     private volatile Session session;private volatile boolean foreground,connecting,destroyed,paused,waitingPicker,cancelBatch;
     private volatile String visiblePage="connect";
-    private volatile int targetFps=24;
+    private final int targetFps=12;
     private PendingBatch pendingBatch;
     private final ArrayDeque<String> diagnostics=new ArrayDeque<String>();
     private static JSONObject json(Object...pairs){JSONObject j=new JSONObject();try{for(int i=0;i<pairs.length;i+=2)j.put((String)pairs[i],pairs[i+1]);}catch(JSONException e){throw new IllegalArgumentException(e);}return j;}
@@ -42,6 +42,7 @@ public final class MainActivity extends Activity {
                 try{
                     Uri u=r.getUrl();
                     if(!"GET".equals(r.getMethod())||!"https".equals(u.getScheme())||!"companion.local".equals(u.getHost())||u.getPort()!=-1)return missing();
+                    if("/monitor-analysis.js".equals(u.getPath()))return new WebResourceResponse("application/javascript","UTF-8",getAssets().open("monitor-analysis.js"));
                     if("/index.html".equals(u.getPath())||"/".equals(u.getPath()))return new WebResourceResponse("text/html","UTF-8",getAssets().open("index.html"));
                     if(u.getPath()!=null&&u.getPath().matches("/media/[a-f0-9]{32}")){
                         InputStream in=media.open(u.getLastPathSegment());if(in!=null)return new WebResourceResponse("image/jpeg",null,in);
@@ -77,11 +78,6 @@ public final class MainActivity extends Activity {
     public final class Bridge{
         @JavascriptInterface public void connect(){main.post(new Runnable(){public void run(){scan();}});}
         @JavascriptInterface public void disconnect(){main.post(new Runnable(){public void run(){disconnectCamera();}});}
-        @JavascriptInterface public void refresh(){submit("อ่านค่ากล้อง",new Job(){public void run(Session s)throws Exception{s.poll();}});}
-        @JavascriptInterface public void capture(){submit("กำลังสั่งชัตเตอร์",new Job(){public void run(Session s)throws Exception{
-            boolean confirmed=s.camera.capture();s.values();message(confirmed?"พบไฟล์ใหม่จากกล้อง พร้อมถ่ายครั้งต่อไป":"ส่งชัตเตอร์และปล่อยปุ่มแล้ว ยังไม่พบเหตุการณ์ไฟล์ใหม่ กรุณาตรวจภาพในการ์ด");
-            emitFor(s,json("type","captureDone","confirmed",confirmed));
-        }});}
         @JavascriptInterface public void photos(){submit("อ่านภาพในการ์ด",new Job(){public void run(Session s)throws Exception{s.photos(false);}});}
         @JavascriptInterface public void morePhotos(){submit("อ่านภาพเพิ่มเติม",new Job(){public void run(Session s)throws Exception{s.photos(true);}});}
         @JavascriptInterface public void preview(final String h){submit("รับ JPEG เต็มเพื่อดูชัด",new Job(){public void run(Session s)throws Exception{s.preview(parseHandle(h));}});}
@@ -101,19 +97,12 @@ public final class MainActivity extends Activity {
                 if(f!=null&&now-s.lastStats>500){s.lastStats=now;s.lastPresentAge=now-f.receivedAt;emitFor(s,json("type","frameStats","stream",f.stream,"ageMs",s.lastPresentAge,"usbMs",f.usbMs,"receivedFps",s.receivedFps));}}
             catch(NumberFormatException ignored){}
         }
-        @JavascriptInterface public void liveRate(int fps){if(fps==12||fps==24)targetFps=fps;}
-        @JavascriptInterface public void settings(){submit("อ่านตัวเลือกกล้อง",new Job(){public void run(Session s)throws Exception{s.poll();s.settings();}});}
-        @JavascriptInterface public void changeSetting(final int property,final String code){submit("ปรับ "+ExposureValues.name(property),new Job(){public void run(Session s)throws Exception{
-            long value;try{value=Long.parseLong(code);}catch(NumberFormatException e){throw new EosCamera.Notice("ค่าที่เลือกไม่ถูกต้อง");}
-            boolean confirmed=s.camera.changeSetting(property,value);s.values();s.settings();
-            message(confirmed?ExposureValues.name(property)+" = "+ExposureValues.label(property,value)+" · กล้องยืนยันแล้ว":"กล้องรับคำสั่งแล้ว แต่ยังไม่ยืนยันค่าใหม่ กดอ่านค่าอีกครั้ง");
-        }});}
         @JavascriptInterface public void page(final String name){
-            if(!Arrays.asList("connect","shoot","photos","monitor").contains(name))return;visiblePage=name;
+            if(!Arrays.asList("connect","photos","monitor").contains(name))return;visiblePage=name;
             final Session s=session;if(s!=null&&!"monitor".equals(name))worker.execute(new Runnable(){public void run(){if(s==session&&s.camera.live)try{s.stopLive();}catch(Exception e){error(s,e,"หยุด Live View");}}});
         }
         @JavascriptInterface public void diagnostics(){main.post(new Runnable(){public void run(){
-            StringBuilder b=new StringBuilder("600D Companion 0.3.0\nAndroid "+Build.VERSION.RELEASE+" / "+Build.MANUFACTURER+" "+Build.MODEL+"\n");
+            StringBuilder b=new StringBuilder("600D Companion 0.4.0\nAndroid "+Build.VERSION.RELEASE+" / "+Build.MANUFACTURER+" "+Build.MODEL+"\n");
             Session s=session;b.append("foreground=").append(foreground).append(" page=").append(visiblePage).append('\n');if(s!=null)b.append("last USB operation=").append(s.lastOperation).append(" awaitingResponse=").append(s.operationPending).append('\n');
             if(s!=null)b.append("targetFps=").append(targetFps).append(" receivedFps=").append(s.receivedFps).append(" usbFrameMs=").append(s.lastUsbMs).append(" postReceiveDisplayMs=").append(s.lastPresentAge).append('\n');
             synchronized(MainActivity.this){for(String line:diagnostics)b.append(line).append('\n');}
@@ -131,7 +120,7 @@ public final class MainActivity extends Activity {
     }
     private void open(final UsbDevice d){worker.execute(new Runnable(){public void run(){Session s=null;
         try{s=new Session(d);session=s;s.start();if(s!=session||s.cancelled)return;
-            emitFor(s,json("type","connected","model",s.info.model,"firmware",s.info.version,"capture",s.camera.canCapture(),"live",s.camera.canLive()));s.values();s.settingsDigest="";s.settings();
+            emitFor(s,json("type","connected","model",s.info.model,"firmware",s.info.version,"live",s.camera.canLive()));s.values();
         }catch(Exception e){if(s!=null){s.connection.close();if(session==s)session=null;}message("เชื่อมต่อไม่สำเร็จ: "+e.getMessage());emit(json("type","disconnected","text","เชื่อมต่อไม่สำเร็จ"));}
         finally{connecting=false;emit(json("type","busy","value",false));}
     }});}
@@ -168,7 +157,7 @@ public final class MainActivity extends Activity {
         final String generation=UUID.randomUUID().toString();Ptp.Device info;EosCamera camera;
         volatile boolean cancelled,operationPending;volatile String lastOperation="";boolean opened,remote,eventMode,lastFrameReady;
         final LatestFrames frames=new LatestFrames();volatile double receivedFps=-1;volatile long lastUsbMs,lastPresentAge,lastStats;
-        long lastPoll,lastKeep,lastFrame,liveSince,receiveWindow,receivedCount;String liveToken="",settingsDigest="";int timeout=15000,scanCursor;int[] allHandles=new int[0];
+        long lastPoll,lastKeep,lastFrame,liveSince,receiveWindow,receivedCount;String liveToken="";int timeout=15000,scanCursor;int[] allHandles=new int[0];
         final Map<Integer,Ptp.Photo> catalog=new LinkedHashMap<Integer,Ptp.Photo>();
         final Map<Integer,File> originals=new HashMap<Integer,File>();final Map<Integer,String> fullUrls=new HashMap<Integer,String>();
         final Map<Integer,String> thumbs=new HashMap<Integer,String>();final ArrayDeque<Integer> thumbQueue=new ArrayDeque<Integer>();
@@ -198,13 +187,7 @@ public final class MainActivity extends Activity {
             JSONObject labels=new JSONObject();for(int p:ExposureValues.PROPERTIES)if(camera.properties.containsKey(p))try{labels.put(Integer.toHexString(p),ExposureValues.label(p,camera.properties.get(p)));}catch(JSONException ignored){}
             try{v.put("exposure",labels);}catch(JSONException ignored){}
             for(Map.Entry<Integer,Long> e:camera.properties.entrySet())try{v.put(Integer.toHexString(e.getKey()),e.getValue());}catch(JSONException ignored){}emitFor(this,v);}
-        void settings(){
-            JSONArray a=new JSONArray();for(int p:ExposureValues.PROPERTIES){JSONArray choices=new JSONArray();List<Long> values=camera.available.get(p);
-                if(values!=null)for(long code:values)choices.put(json("value",code,"label",ExposureValues.label(p,code)));
-                String reason=camera.settingBlock(p);a.put(json("property",p,"name",ExposureValues.name(p),"value",camera.properties.containsKey(p)?camera.properties.get(p):JSONObject.NULL,"enabled",reason==null,"reason",reason==null?"":reason,"choices",choices));}
-            JSONObject data=json("type","settings","items",a);String digest=data.toString();if(!digest.equals(settingsDigest)){settingsDigest=digest;emitFor(this,data);}
-        }
-        void poll()throws IOException{camera.poll();lastPoll=SystemClock.elapsedRealtime();values();settings();}
+        void poll()throws IOException{camera.poll();lastPoll=SystemClock.elapsedRealtime();values();}
         void deliver(LatestFrames.Frame frame){emitFor(this,json("type","frame","id",frame.stream+":"+frame.sequence,"stream",frame.stream,"sequence",frame.sequence,"url","https://companion.local/live/"+frame.stream+"/"+frame.sequence+".jpg","width",frame.width,"height",frame.height,"usbMs",frame.usbMs));}
         void emitLive(String state,String text){emitFor(this,json("type","live","state",state,"text",text,"stream",liveToken));}
         void stopLive()throws IOException{frames.stop();try{camera.stopLive();}finally{emitLive("stopped","หยุดรับภาพแล้ว");}}

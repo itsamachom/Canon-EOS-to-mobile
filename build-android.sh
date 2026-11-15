@@ -25,6 +25,6 @@ PY
 if [[ ! -f "$OUT/prototype.keystore" ]]; then
   keytool -genkeypair -keystore "$OUT/prototype.keystore" -storepass android -keypass android -alias prototype -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=600D Companion Prototype' >/dev/null 2>&1
 fi
-"$BUILD_TOOLS/apksigner" sign --ks "$OUT/prototype.keystore" --ks-pass pass:android --key-pass pass:android --ks-key-alias prototype --out "$OUT/600D-Companion-0.3.0-prototype.apk" "$OUT/aligned.apk"
-"$BUILD_TOOLS/apksigner" verify --verbose "$OUT/600D-Companion-0.3.0-prototype.apk"
-"$BUILD_TOOLS/aapt2" dump badging "$OUT/600D-Companion-0.3.0-prototype.apk" | head -6
+"$BUILD_TOOLS/apksigner" sign --ks "$OUT/prototype.keystore" --ks-pass pass:android --key-pass pass:android --ks-key-alias prototype --out "$OUT/600D-Companion-0.4.0-prototype.apk" "$OUT/aligned.apk"
+"$BUILD_TOOLS/apksigner" verify --verbose "$OUT/600D-Companion-0.4.0-prototype.apk"
+"$BUILD_TOOLS/aapt2" dump badging "$OUT/600D-Companion-0.4.0-prototype.apk" | head -6

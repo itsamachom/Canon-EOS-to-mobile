@@ -6,15 +6,17 @@ def git(*args):return subprocess.check_output(['git',*args],cwd=root)
 if git('status','--porcelain').strip():raise SystemExit('Commit source changes before packaging')
 manifest=ET.parse(root/'app/src/main/AndroidManifest.xml').getroot();ns='{http://schemas.android.com/apk/res/android}'
 version_name=manifest.attrib[ns+'versionName'];version=version_name.split('-')[0];version_code=int(manifest.attrib[ns+'versionCode'])
-ptp_text=(root/'build/ptp-tests.txt').read_text();eos_text=(root/'build/eos-tests.txt').read_text();ui=json.loads((root/'build/ui-tests.json').read_text());live_text=(root/'build/live-settings-tests.txt').read_text()
+ptp_text=(root/'build/ptp-tests.txt').read_text();eos_text=(root/'build/eos-tests.txt').read_text();ui=json.loads((root/'build/ui-tests.json').read_text());live_text=(root/'build/live-settings-tests.txt').read_text();analysis_text=(root/'build/monitor-analysis-tests.txt').read_text()
 p=re.search(r'PASS: (\d+) PTP assertions \+ (\d+)',ptp_text);e=re.search(r'PASS: (\d+) EOS',eos_text)
 live=re.search(r'PASS: (\d+) Live/settings',live_text)
-assert p and e and live and ui['passed'] and ui['version']==version,'Missing matching test evidence'
+analysis=re.search(r'PASS: (\d+) JPEG histogram',analysis_text)
+assert p and e and live and analysis and ui['passed'] and ui['version']==version,'Missing matching test evidence'
 commit=git('rev-parse','HEAD').decode().strip();out=root/'downloads'/version;out.mkdir(parents=True,exist_ok=True)
 apk=root/'build'/f'600D-Companion-{version_name}.apk'
 with zipfile.ZipFile(apk) as z:
     assert z.testzip() is None and 'classes.dex' in z.namelist()
     assert z.read('assets/index.html')==(root/'app/src/main/assets/index.html').read_bytes()
+    assert z.read('assets/monitor-analysis.js')==(root/'app/src/main/assets/monitor-analysis.js').read_bytes()
 chain=pathlib.Path(os.environ.get('TOOLCHAIN',root/'build/toolchain'))
 signer=pathlib.Path(os.environ.get('BUILD_TOOLS',chain/'android-15'))/'apksigner'
 cert_output=subprocess.check_output([str(signer),'verify','--print-certs',str(apk)]).decode()
@@ -31,6 +33,7 @@ source.write_bytes(git('archive','--format=zip','--prefix=Canon-EOS-to-mobile-so
 with zipfile.ZipFile(source) as z:
     assert z.testzip() is None
     assert not any(n.endswith(('.keystore','.jks','.apk','.FIR','.BIN')) for n in z.namelist())
+    assert z.read('Canon-EOS-to-mobile-source/app/src/main/assets/monitor-analysis.js')==(root/'app/src/main/assets/monitor-analysis.js').read_bytes()
     assert z.read('Canon-EOS-to-mobile-source/app/src/main/assets/index.html')==(root/'app/src/main/assets/index.html').read_bytes()
 for src,name in [('docs/INSTALL_TH.md','INSTALL_TH.md'),(f'docs/RELEASE_{version}.md','RELEASE_NOTES.md'),('docs/TEST_RESULTS.md','TEST_RESULTS.md'),('LICENSE','LICENSE')]:shutil.copy2(root/src,out/name)
 info={
@@ -39,10 +42,10 @@ info={
  'created_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
  'min_android_api':26,'target_android_api':35,'build_tools':'35.0.0','java_compiler':'ECJ 3.39.0',
  'physical_android_tested':False,'android_emulator_tested':False,'physical_camera_tested':False,
- 'previous_user_feedback':'0.2.0 Live View feels laggy; 0.3.0 physical speed/settings require device retest',
+ 'previous_user_feedback':'User requested fixed 12 fps landscape monitor, no shutter/exposure controls, and focus peaking/histogram',
  'signing_certificate_sha256':cert,'signer_matches_published_0_1_1':same_signer,'signing':'prototype key; private key not included',
- 'verification':{'ptp_assertions':int(p.group(1)),'eos_cache_assertions':int(e.group(1)),'live_settings_assertions':int(live.group(1)),'malformed_parser_cases':int(p.group(2)),'browser_menu_tests':ui,'apk_v2_v3_signature':'verified'},
- 'target_live_fps':24,'hardware_24fps_verified':False,'frame_transport':'latest-only app-local in-memory JPEG; no Base64; no-store',
+ 'verification':{'ptp_assertions':int(p.group(1)),'eos_cache_assertions':int(e.group(1)),'live_settings_assertions':int(live.group(1)),'synthetic_analysis_assertions':int(analysis.group(1)),'malformed_parser_cases':int(p.group(2)),'browser_menu_tests':ui,'apk_v2_v3_signature':'verified'},
+ 'target_live_fps':12,'fps_selector':False,'screen_orientation':'landscape','remote_capture_controls':False,'exposure_controls':False,'analysis':'original Sobel peaking and luminance histogram on downsampled USB JPEG; not ML overlay/RAW','hardware_fps_verified':False,'frame_transport':'latest-only app-local in-memory JPEG; no Base64; no-store',
  'live_view':'EOS JPEG segments 1/11 and JPEG-in-9; non-JPEG segment 9 unsupported; streaming during video recording not hardware verified',
  'apk_sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),'license':'MIT'
 }
