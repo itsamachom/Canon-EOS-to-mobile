@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0-prototype",
+  "version_code": 3,
+  "package": "art.photoui.companion",
+  "repository": "https://github.com/itsamachom/Canon-EOS-to-mobile",
+  "source_commit": "d57c31ef350601e6b603d82f438c1ae61c992378",
+  "created_utc": "2026-11-15T15:53:42.866497+00:00",
+  "min_android_api": 26,
+  "target_android_api": 35,
+  "build_tools": "35.0.0",
+  "java_compiler": "ECJ 3.39.0",
+  "physical_android_tested": false,
+  "android_emulator_tested": false,
+  "physical_camera_tested": false,
+  "previous_user_feedback": "0.1.1 could expose once in M then no visible response; cause unconfirmed; 0.2.0 requires hardware retest",
+  "signing_certificate_sha256": "396b7327295a4cf19c75b5278a1e63b49b221fa400947f02d29037e2ec11d757",
+  "signer_matches_published_0_1_1": true,
+  "signing": "prototype key; private key not included",
+  "verification": {
+    "ptp_assertions": 41,
+    "eos_cache_assertions": 40,
+    "malformed_parser_cases": 2000,
+    "browser_menu_tests": {
+      "passed": true,
+      "version": "0.2.0",
+      "viewports": 5,
+      "screenshots": 4,
+      "hardware": false
+    },
+    "apk_v2_v3_signature": "verified"
+  },
+  "live_view": "EOS JPEG segments 1/11 and JPEG-in-9; non-JPEG segment 9 unsupported; streaming during video recording not hardware verified",
+  "apk_sha256": "e9cb552902be2ab2d52be38b3f693671ead9b1237f34192da1ddb1b72d3505df",
+  "license": "MIT"
+}
