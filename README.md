@@ -76,7 +76,7 @@ NODE_PATH=/path/to/node_modules node tests/ui.cjs
 
 ## ที่มาและใบอนุญาต
 
-แยกแนวคิดและต้นแบบ Android ออกจาก [โครงการเฟิร์มแวร์ Canon 600D Photo UI](https://github.com/itsamachom/EOS_ROM_MLV_Modifly)
+แยกแนวคิดและต้นแบบ Android ออกจาก [โครงการเฟิร์มแวร์ Canon 600D Photo UI](https://github.com/itsamachom/EOS_ROM_MLV_Modify)
 repository นี้มีเฉพาะแอป Android ไม่มี AUTOEXEC.BIN, FIR, Canon ROM หรือซอร์สเฟิร์มแวร์ ML
 
 PTP implementation เขียนใหม่ ไม่บรรจุ libgphoto2; อ้างอิงข้อเท็จจริงของโปรโตคอลจาก:
