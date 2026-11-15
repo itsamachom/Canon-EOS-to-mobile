@@ -1,0 +1,14 @@
+package art.photoui.companion;
+import java.util.Map;
+public final class CameraRules{
+    private static boolean is(Map<Integer,Long> p,int k,long v){return p.containsKey(k)&&p.get(k).longValue()==v;}
+    public static String captureBlock(Map<Integer,Long> p){
+        if(!is(p,0xd11c,2))return "ยังยืนยันไม่ได้ว่าบันทึกลงการ์ด กรุณาอ่านค่าใหม่ แอปจะไม่เปลี่ยนปลายทางให้เอง";
+        if(!is(p,0xd108,3))return "เลื่อนสวิตช์เลนส์เป็น MF แล้วอ่านค่ากล้องใหม่ก่อนทดลอง";
+        if(!is(p,0xd105,3)||!is(p,0xd106,0))return "ตั้งกล้องโหมด M และขับเคลื่อนภาพเดี่ยว แล้วอ่านค่าใหม่";
+        Long shutter=p.get(0xd102);
+        if(shutter==null||shutter.longValue()<0x10||shutter.longValue()>0x98)return "ตั้งชัตเตอร์ปกติ เช่น 1/125 วินาที ไม่ใช้ Bulb แล้วอ่านค่าใหม่";
+        if(p.containsKey(0xd11b)&&p.get(0xd11b).longValue()==0)return "กล้องรายงานว่าถ่ายได้อีก 0 ภาพ กรุณาตรวจพื้นที่การ์ด";return null;
+    }
+    private CameraRules(){}
+}

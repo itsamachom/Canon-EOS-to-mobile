@@ -1,0 +1,32 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const path=require('node:path');
+const fs=require('node:fs');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});
+ const url=process.env.PREVIEW_URL||'http://127.0.0.1:8765/index.html';const errors=[];
+ const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});page.on('pageerror',e=>errors.push(e.message));await page.goto(url);
+ const out=path.resolve(__dirname,'../previews');fs.mkdirSync(out,{recursive:true});
+ assert(await page.locator('#captureButton').isDisabled());await page.screenshot({path:out+'/01-connect.png',fullPage:true});
+ await page.getByRole('button',{name:'ลองหน้าจอ',exact:true}).click();assert(await page.locator('#demoBanner').isVisible());
+ assert.equal(await page.locator('#iso').textContent(),'100');assert.equal(await page.locator('#aperture').textContent(),'f/4');assert.equal(await page.locator('#shutter').textContent(),'1/125');
+ const s=await page.locator('#captureButton').boundingBox(),n=await page.locator('.nav').boundingBox();assert(s.y+s.height<=n.y,'shutter visible above navigation');
+ await page.locator('#toast button').click();await page.screenshot({path:out+'/02-shoot-demo.png',fullPage:true});
+ await page.locator('#captureButton').click();await page.locator('[data-page="photos"]').click();await page.locator('#photosButton').click();assert.equal(await page.locator('.photo-row').count(),4);
+ await page.getByRole('button',{name:'ดู',exact:true}).first().click();assert(await page.locator('#photoPreview').isVisible());await page.locator('#toast button').click();await page.screenshot({path:out+'/03-photos-demo.png',fullPage:true});
+ await page.getByRole('button',{name:'บันทึก',exact:true}).first().click();assert((await page.locator('#toastText').textContent()).includes('ไม่มีไฟล์กล้อง'));
+ await page.locator('[data-page="guide"]').click();await page.locator('#toast button').click();await page.screenshot({path:out+'/04-guide.png',fullPage:true});
+ for(const w of [320,390,600,900]){await page.setViewportSize({width:w,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'overflow '+w);}
+ await page.locator('[data-page="connect"]').click();await page.locator('#disconnectButton').click();assert(await page.locator('#captureButton').isDisabled());assert.equal(await page.locator('#iso').textContent(),'—');
+ const device=await browser.newPage({viewport:{width:390,height:844}});device.on('pageerror',e=>errors.push(e.message));
+ await device.addInitScript(()=>{window.calls=[];window.Android={connect(){calls.push('connect');},capture(){calls.push('capture');},refresh(){calls.push('refresh');},photos(){calls.push('photos');},thumbnail(h){calls.push('thumb:'+h);},save(h){calls.push('save:'+h);},disconnect(){calls.push('disconnect');}};});
+ await device.goto(url);await device.locator('#connectButton').click();assert.deepEqual(await device.evaluate(()=>calls),['connect']);
+ await device.evaluate(()=>onNative({type:'connected',model:'Canon EOS 600D',firmware:'1.0.2',capture:false}));assert(await device.locator('#captureButton').isDisabled());
+ await device.evaluate(()=>onNative({type:'connected',model:'Canon EOS 600D',firmware:'1.0.2',capture:true}));await device.locator('[data-page="shoot"]').click();await device.locator('#captureButton').click();assert((await device.evaluate(()=>calls)).includes('capture'));
+ await device.evaluate(()=>onNative({type:'busy',value:true}));assert(await device.locator('#captureButton').isDisabled());await device.evaluate(()=>onNative({type:'busy',value:false}));
+ await device.evaluate(()=>onNative({type:'photos',items:[{handle:'123',name:'<img src=x onerror=alert(1)>.JPG',size:123}],scanned:1}));assert.equal(await device.locator('#photoList img').count(),0);
+ await device.locator('[data-page="photos"]').click();await device.getByRole('button',{name:'ดู',exact:true}).click();assert((await device.evaluate(()=>calls)).includes('thumb:123'));
+ await device.evaluate(()=>onNative({type:'disconnected',text:'ถอดสายแล้ว'}));assert(await device.locator('#captureButton').isDisabled());assert.equal(await device.locator('.photo-row').count(),0);
+ await device.evaluate(()=>onNative({type:'values',d103:72}));assert.equal(await device.locator('#iso').textContent(),'—');assert.deepEqual(errors,[]);
+ await browser.close();console.log('PASS: demo, native bridge, capabilities, busy/disconnect, escaped filenames, four viewport widths; four screenshots');
+})().catch(e=>{console.error(e);process.exit(1);});
