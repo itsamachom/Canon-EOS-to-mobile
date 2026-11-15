@@ -1,0 +1,25 @@
+{
+  "version": "0.1.1-prototype",
+  "version_code": 2,
+  "package": "art.photoui.companion",
+  "repository": "https://github.com/itsamachom/Canon-EOS-to-mobile",
+  "source_commit": "a1b7063ffd0fc261ca29ca08ade5248b21095046",
+  "created_utc": "2026-11-15T05:56:46.701601+00:00",
+  "min_android_api": 26,
+  "target_android_api": 35,
+  "build_tools": "35.0.0",
+  "java_compiler": "ECJ 3.39.0",
+  "physical_android_tested": false,
+  "android_emulator_tested": false,
+  "physical_camera_tested": false,
+  "signing": "new local prototype key; uninstall 0.1.0 if signature differs; not a production signing key",
+  "migration": "reconstructed from conversation; previous unsent local files/key unavailable; not binary-identical to 0.1.0",
+  "verification": {
+    "ptp_assertions": 37,
+    "malformed_parser_cases": 2000,
+    "browser_menu_tests": "passed",
+    "apk_v2_v3_signature": "verified"
+  },
+  "apk_sha256": "2eeec9544640633ee8e729706530e671ff581a45225d8139180e20b23cdfdf4f",
+  "license": "MIT"
+}
