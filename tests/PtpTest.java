@@ -41,12 +41,17 @@ public final class PtpTest{
         Ptp.Device info=Ptp.device(device.toByteArray());check(info.is600D()&&info.operations.contains(0x9128)&&info.version.equals("1.0.2"),"model and capabilities");
         check(Ptp.photo(1,new byte[53])==null,"non JPEG ignored");byte[] photo=new byte[52];Ptp.put(photo,4,0x3801,2);Ptp.put(photo,8,5000,4);
         Ptp.Photo image=Ptp.photo(1,join(photo,string("../IMG_0001.JPG")));check(image!=null&&!image.name.contains("/"),"filename sanitized");
+        byte[] padded=event.clone();padded[14]=(byte)0xef;padded[15]=(byte)0xbe;check(Ptp.properties(padded).get(0xd103)==72L,"EOS word values ignore padding");
         byte[] small=Arrays.copyOf(event,14);Ptp.put(small,0,14,4);check(Ptp.properties(small).get(0xd103)==72L,"16-bit EOS property");
         Map<Integer,Long> settings=new HashMap<Integer,Long>();check(CameraRules.captureBlock(settings)!=null,"unknown settings blocked");
-        for(int[] v:new int[][]{{0xd11c,2},{0xd108,3},{0xd105,3},{0xd106,0},{0xd102,0x70},{0xd11b,42}})settings.put(v[0],(long)v[1]);check(CameraRules.captureBlock(settings)==null,"single MF card capture allowed");
-        for(int[] v:new int[][]{{0xd11c,4},{0xd108,0},{0xd105,4},{0xd106,1},{0xd102,0},{0xd11b,0}}){Long previous=settings.put(v[0],(long)v[1]);check(CameraRules.captureBlock(settings)!=null,"blocked "+v[0]);settings.put(v[0],previous);}
+        for(int[] v:new int[][]{{0xd11c,2},{0xd108,3},{0xd105,3},{0xd106,0},{0xd102,0x70},{0xd11b,42}})settings.put(v[0],(long)v[1]);check(CameraRules.captureBlock(settings)==null,"single MF card capture allowed");settings.put(0xd108,0L);check(CameraRules.captureBlock(settings)==null,"camera AF allowed");settings.put(0xd108,3L);
+        for(int[] v:new int[][]{{0xd11c,4},{0xd105,4},{0xd106,1},{0xd102,0},{0xd11b,0}}){Long previous=settings.put(v[0],(long)v[1]);check(CameraRules.captureBlock(settings)!=null,"blocked "+v[0]);settings.put(v[0],previous);}
         Wire shutter=new Wire(join(Ptp.container(3,Ptp.OK,0),Ptp.container(3,0x2019,1),Ptp.container(3,Ptp.OK,2),Ptp.container(3,Ptp.OK,3)),100);rejects(()->new Ptp(shutter).releaseSingle(),"shutter rejected without retry");
         byte[] requests=shutter.output.toByteArray();check(requests.length==72,"four shutter operations");check(Ptp.u16(requests,46)==0x9129&&Ptp.u32(requests,52)==2&&Ptp.u16(requests,62)==0x9129&&Ptp.u32(requests,68)==1,"release after rejection");
+        Wire setting=new Wire(Ptp.container(3,Ptp.OK,0),100);new Ptp(setting).setProperty(0xd1b0,2).requireOK();byte[] written=setting.output.toByteArray();
+        check(written.length==36&&Ptp.u16(written,6)==0x9110&&Ptp.u16(written,16)==2,"EOS outbound data phase");
+        check(Ptp.u32(written,24)==12&&Ptp.u32(written,28)==0xd1b0&&Ptp.u32(written,32)==2,"EOS property payload");
+        final int[] observed={0};Ptp observedPtp=new Ptp(new Wire(Ptp.container(3,0x2019,0),100));observedPtp.setObserver((op,code,ms)->{if(op==0x1001&&code==0x2019&&ms>=0)observed[0]++;});observedPtp.call(0x1001);check(observed[0]==1,"transaction diagnostics for rejection");
         Random rng=new Random(600);for(int i=0;i<2000;i++){byte[] fuzz=new byte[rng.nextInt(150)];rng.nextBytes(fuzz);try{Ptp.properties(fuzz);}catch(IOException expected){}try{Ptp.device(fuzz);}catch(IOException expected){}try{Ptp.handles(fuzz);}catch(IOException expected){}}
         check(true,"2000 malformed datasets bounded");System.out.println("PASS: "+tests+" PTP assertions + 2000 parser fuzz cases");
     }

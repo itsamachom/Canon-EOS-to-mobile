@@ -9,6 +9,9 @@ public final class Ptp {
     private final Wire wire;
     private byte[] pending=new byte[0];
     private int cursor,transaction;
+    public interface Observer { default void start(int operation,int transaction){} void transaction(int operation,int code,long durationMs); }
+    private Observer observer;
+    public void setObserver(Observer observer){this.observer=observer;}
     public Ptp(Wire wire){this.wire=wire;}
     public static long u32(byte[] b,int p)throws IOException{
         if(p<0||p>b.length-4)throw new IOException("ข้อมูล PTP สั้นเกินไป");
@@ -49,22 +52,35 @@ public final class Ptp {
         finally{try{call(0x9129,2).requireOK();}finally{call(0x9129,1).requireOK();}}
     }
     public synchronized Reply transfer(int op,OutputStream sink,long limit,int...args)throws IOException{
+        return exchange(op,sink,limit,null,args);
+    }
+    public synchronized Reply setProperty(int property,long value)throws IOException{
+        byte[] data=new byte[12];put(data,0,12,4);put(data,4,property,4);put(data,8,value,4);
+        return exchange(0x9110,null,0,data);
+    }
+    private void writeAll(byte[] bytes)throws IOException{
+        int offset=0;while(offset<bytes.length){int n=wire.write(bytes,offset,bytes.length-offset);if(n<=0||n>bytes.length-offset)throw new IOException("ส่ง USB ไม่สำเร็จ");offset+=n;}
+    }
+    private Reply exchange(int op,OutputStream sink,long limit,byte[] outbound,int...args)throws IOException{
+        long started=System.nanoTime();
         if(op==0x1002)transaction=0;
-        int id=transaction++;byte[] command=container(1,op,id,args);int sent=0;
-        while(sent<command.length){int n=wire.write(command,sent,command.length-sent);if(n<=0||n>command.length-sent)throw new IOException("ส่ง USB ไม่สำเร็จ");sent+=n;}
+        int id=transaction++;if(observer!=null)observer.start(op,id);writeAll(container(1,op,id,args));
+        if(outbound!=null){byte[] header=container(2,op,id);put(header,0,12+outbound.length,4);writeAll(header);writeAll(outbound);}
         Reply result=new Reply();boolean hadData=false;
         for(int phase=0;phase<2;phase++){
             byte[] h=readExactly(12);long length=u32(h,0);int type=u16(h,4),code=u16(h,6);
             if(length<12||(int)u32(h,8)!=id)throw new IOException("PTP transaction ไม่ตรงกัน กรุณาเชื่อมต่อใหม่");
             long size=length-12;
-            if(type==2&&code==op&&!hadData){
+            if(type==2&&code==op&&!hadData&&outbound==null){
                 if(size>limit)throw new IOException("ไฟล์ใหญ่เกินขอบเขตต้นแบบ กรุณาเชื่อมต่อใหม่");
                 hadData=true;ByteArrayOutputStream memory=sink==null?new ByteArrayOutputStream():null;OutputStream target=sink==null?memory:sink;
                 for(long left=size;left>0;){byte[] block=readExactly((int)Math.min(16384,left));target.write(block);left-=block.length;}
                 if(memory!=null)result.data=memory.toByteArray();result.bytes=size;
             }else if(type==3&&size<=20&&size%4==0){
                 result.code=code;byte[] body=readExactly((int)size);result.params=new int[body.length/4];
-                for(int i=0;i<result.params.length;i++)result.params[i]=(int)u32(body,i*4);return result;
+                for(int i=0;i<result.params.length;i++)result.params[i]=(int)u32(body,i*4);
+                if(observer!=null)observer.transaction(op,code,(System.nanoTime()-started)/1000000);
+                return result;
             }else throw new IOException("รูปแบบ PTP ไม่ถูกต้อง กรุณาเชื่อมต่อใหม่");
         }throw new IOException("ไม่พบคำตอบ PTP");
     }
@@ -103,7 +119,10 @@ public final class Ptp {
         while(p<b.length){
             if(b.length-p<8)throw new IOException("EOS event ขาดหาย");long size=u32(b,p),type=u32(b,p+4);
             if(size<8||size>b.length-p)throw new IOException("EOS event ไม่ถูกต้อง");
-            if(type==0xc189&&size>=14)values.put((int)u32(b,p+8),size>=16?u32(b,p+12):(long)u16(b,p+12));p+=(int)size;
+            if(type==0xc189&&size>=14){int property=(int)u32(b,p+8);
+                boolean word=(property>=0xd101&&property<=0xd107)||property==0xd109||property==0xd1b1||property==0xd1b8;
+                values.put(property,word||size<16?(long)u16(b,p+12):u32(b,p+12));
+            }p+=(int)size;
         }return values;
     }
 }

@@ -1,57 +1,83 @@
 # Canon EOS to mobile — 600D Companion
 
-Independent open-source Android USB companion for Canon EOS cameras.
-**Initial prototype targets only the Canon EOS 600D / Rebel T3i / Kiss X5.**
-แอปภาษาไทยสำหรับต่อ Android เข้ากล้องด้วย USB OTG โดยไม่ต้องลงเฟิร์มแวร์เพิ่ม
+Independent open-source Android USB companion for **Canon EOS 600D / Rebel T3i / Kiss X5**.
+แอปภาษาไทยสำหรับต่อกล้องเข้ามือถือด้วย USB OTG ไม่ต้องติดตั้งเฟิร์มแวร์เพิ่ม
 
-**สถานะ: 0.1.1-prototype — ยังไม่ทดสอบบน Android/emulator หรือกล้องจริง**
-ผ่านการบิลด์ ตรวจลายเซ็น APK และทดสอบโปรโตคอลกับอุปกรณ์จำลอง/หน้าเมนูบนคอมพิวเตอร์เท่านั้น
-ไม่มี Live View ในรุ่นนี้
+**รุ่นล่าสุด: 0.2.0-prototype** — แก้เส้นทางถ่ายซ้ำ, ตารางภาพ/ดาวน์โหลดหลายไฟล์ และเพิ่ม USB Live View
+ผ่านการบิลด์และทดสอบจำลองบนคอมพิวเตอร์แล้ว **ยังไม่ได้ทดสอบรุ่น 0.2.0 บนมือถือ/กล้องจริง**
+ผู้ใช้รายงานว่า 0.1.1 ถ่ายได้ครั้งเดียวแล้วนิ่ง รุ่นนี้แก้หลายจุดที่เกี่ยวข้อง แต่ยังต้องลองยืนยันกับ 600D จริง ไม่ถือว่าทดสอบแล้วว่าอาการหาย
 
-## ดาวน์โหลดและเริ่มทดลอง
+## ดาวน์โหลด
 
-- **[ดาวน์โหลด APK สำหรับ Android](downloads/0.1.1/600D-Companion-0.1.1-prototype.apk?raw=true)** — เปิดไฟล์แล้วติดตั้งบนมือถือ Android 8 ขึ้นไป
-- [คู่มือภาษาไทย](docs/INSTALL_TH.md)
-- [ซอร์ส ZIP ของรุ่นนี้](downloads/0.1.1/600D-Companion-0.1.1-source.zip?raw=true)
-- [SHA256SUMS](downloads/0.1.1/SHA256SUMS) / [ข้อมูลบิลด์](downloads/0.1.1/BUILD_INFO.json)
-- [ผลตรวจบนคอมพิวเตอร์และสิ่งที่ยังต้องทดสอบ](docs/TEST_RESULTS.md)
+- **[APK 0.2.0 สำหรับ Android](downloads/0.2.0/600D-Companion-0.2.0-prototype.apk?raw=true)**
+- [วิธีติดตั้งและทดสอบภาษาไทย](docs/INSTALL_TH.md)
+- [ซอร์ส ZIP ตรงกับรุ่นนี้](downloads/0.2.0/600D-Companion-0.2.0-source.zip?raw=true)
+- [SHA256SUMS](downloads/0.2.0/SHA256SUMS) / [BUILD_INFO](downloads/0.2.0/BUILD_INFO.json)
+- [สิ่งที่เปลี่ยนใน 0.2.0](docs/RELEASE_0.2.0.md) / [ผลตรวจและข้อจำกัด](docs/TEST_RESULTS.md)
 
-บน GitHub หากไฟล์ APK ไม่เริ่มดาวน์โหลด ให้เปิดไฟล์แล้วกด **Download raw file**
-APK นี้สำหรับมือถือ **ไม่ใช่เฟิร์มแวร์ ห้ามเปลี่ยนชื่อเป็น AUTOEXEC.BIN หรือลงผ่าน Firmware Update บนกล้อง**
+เปิด APK แล้วกด **Download raw file** หาก GitHub ไม่เริ่มดาวน์โหลด
+APK สำหรับมือถือ ไม่ใช่ AUTOEXEC.BIN และไม่ใช่ไฟล์ Firmware Update ของกล้อง
 
-รุ่นนี้บิลด์ใหม่หลังแยก repository และใช้กุญแจลงนาม prototype ใหม่
-หากลง 0.1.0 ไว้แล้ว Android อาจไม่ยอมอัปเดตทับ ต้องถอนรุ่นเดิมก่อนติดตั้ง ดู [บันทึกการย้าย](docs/MIGRATION.md)
+ใช้กุญแจ prototype **เดียวกับ APK 0.1.1 ที่เผยแพร่ใน repository** ตรวจ certificate digest ตรงกันแล้ว และเพิ่ม versionCode เป็น 3
+จึงเตรียมไว้ให้ติดตั้งทับ 0.1.1 ได้ หากเป็น 0.1.0/ไฟล์ที่ลงนามเอง อาจต้องถอนรุ่นเดิมก่อน
+กุญแจส่วนตัวไม่เข้า Git หรือซอร์ส ZIP
 
-## เมนู
+## เมนูปัจจุบัน
 
 | เมนู | การทำงาน |
 |---|---|
-| เชื่อมต่อ | ขอสิทธิ์ USB, ตรวจรุ่น/เฟิร์มแวร์, ยกเลิกการเชื่อมต่อ, ลองหน้าจอจำลอง |
-| ถ่ายภาพ | อ่าน ISO/รูรับแสง/ชัตเตอร์/โหมด/ภาพที่เหลือ และส่งคำสั่งชัตเตอร์ |
-| ภาพในการ์ด | ตรวจ JPEG จาก 80 handles ท้ายที่กล้องส่ง, ดูภาพย่อ, รับ JPEG สำเนาเข้ามือถือ |
-| คู่มือ | วิธีต่อสาย ข้อจำกัด และข้อความสถานะในเครื่อง |
+| เชื่อมต่อ | ขอสิทธิ์ USB, อ่านรุ่น/firmware, สาธิตหน้าจอ, คัดลอกสถานะวินิจฉัย |
+| ถ่ายภาพ | P / Tv / Av / M, อ่านค่า, ส่งชัตเตอร์, อ่านเหตุการณ์ระหว่างปล่อยปุ่ม/รอกล้องพร้อม, แสดงสถานะทันที |
+| ภาพในการ์ด | ตาราง Thumbnail อัตโนมัติ, แตะเลือกหลายภาพ, ดู JPEG เต็ม, ดาวน์โหลด 1–80 ภาพต่อชุด |
+| มอนิเตอร์ | รับ USB Live View, เตือนภาพค้าง, fps ที่มือถือแสดง, เส้นตาราง, ขยายจอ, แนวนอน/เต็มพื้นที่แอป |
 
-โหมดสาธิตไม่ส่งคำสั่งกล้องและใช้ภาพวาด/ตัวเลขจำลอง มีป้ายระบุชัดเจน
-ภาพด้านล่างเป็น screenshot ของ HTML ที่บรรจุใน APK บน browser **ไม่ใช่ภาพ Android หรือกล้องจริง**
+ตัดหน้าคู่มือออกจากแอปแล้ว คู่มือยังอ่านได้ใน repository
+ภาพด้านล่างเป็น **browser screenshot ของ UI ที่บรรจุใน APK ในโหมดสาธิต** ไม่ใช่ภาพจากกล้อง/มือถือจริง และไม่ใช่ผลวัดประสิทธิภาพกล้อง
 
-<img src="previews/01-connect.png" alt="เมนูเชื่อมต่อ" width="260"> <img src="previews/02-shoot-demo.png" alt="หน้าถ่ายภาพ ข้อมูลสาธิต" width="260">
+<img src="previews/03-gallery-demo.png" width="260" alt="ตารางภาพสาธิต"> <img src="previews/04-monitor-demo.png" width="260" alt="หน้ามอนิเตอร์สาธิต">
 
-## อุปกรณ์และขอบเขต
+## ภาพย่อกับภาพชัดต่างกันอย่างไร
 
-Android 8+ ที่รองรับ USB Host/OTG, WebView ที่อัปเดต, อะแดปเตอร์ OTG และสาย **USB Mini-B ที่ส่งข้อมูลได้**
-ตั้งกล้อง M, เลนส์ MF, ภาพเดี่ยว, JPEG หรือ RAW+JPEG, ชัตเตอร์ 1/125 และมีการ์ดพร้อมบันทึก
-มือถือกับกล้องใช้แบตเตอรี่ของตัวเอง ไม่ใช่การชาร์จกล้องผ่าน USB
+0.1.1 ใช้ GetThumb ตอนกดดู จึงขยายภาพย่อเล็ก ๆ จนมัว
+0.2.0 ใช้ Thumbnail เฉพาะตาราง และ **รับ JPEG ต้นฉบับด้วย GetObject เมื่อกดแว่นขยาย**
+แสดงขนาดพิกเซล/ขนาดไฟล์ มีพอดีจอและ 100% และแคชไว้ใช้ดาวน์โหลดต่อ
+ความละเอียดสูงสุดขึ้นอยู่กับ JPEG ที่กล้องบันทึกจริง ไม่ได้เพิ่มรายละเอียดเกินไฟล์ต้นฉบับ หากต้องการภาพใหญ่ให้ตั้ง JPEG L หรือ RAW+JPEG L บนกล้อง
+ยังไม่เปิดไฟล์ RAW/MLV
 
-แอปไม่เขียนเฟิร์มแวร์ ไม่ลบ/format การ์ด ไม่เปลี่ยนค่าแสงหรือ Picture Style และไม่เปลี่ยนปลายทางบันทึกให้เอง
-ต้นแบบสั่งชัตเตอร์เมื่ออ่านยืนยัน M/MF/ภาพเดี่ยว/ชัตเตอร์ปกติและ card destination=2 ได้เท่านั้น
-การรับคำสั่งชัตเตอร์ไม่ใช่หลักฐานว่ากล้องเขียนไฟล์เสร็จ ต้องตรวจภาพในการ์ดจริง
-ยังไม่มี autofocus, Live View, วิดีโอ, RAW/MLV download, LUT, Time-lapse หรือถ่ายคร่อม
-จำนวนรุ่นกล้องอื่นที่รองรับ **ยังไม่มีการยืนยัน**
+## Live View และวิดีโอ
 
-## พัฒนาและบิลด์
+USB Live View ของ Canon เป็นโปรโตคอล PTP/EOS ไม่ใช่ UVC หรือ HDMI
+แอปเปิด EVF และส่งภาพไป PC/USB แล้วอ่านเฟรม 0x9153; หน้าจอกล้องอาจดับระหว่างส่งภาพ
+หยุดเมื่อออกจากหน้ามอนิเตอร์หรือแอปเข้าเบื้องหลัง และพยายามคืนเฉพาะค่า EVF ที่แอปเปลี่ยน
+ไม่ส่งคำสั่งเริ่ม/หยุดบันทึกวิดีโอ และไม่ปิด EVF mode ถ้ารายงานว่ากำลังบันทึก/อยู่โหมด Movie/ไม่ทราบสถานะ recording
 
-Linux x86_64, Java 21+, Python 3.9+; ใช้ API 35, build-tools 35.0.0 และ ECJ 3.39.0
-ไม่มี Gradle/AndroidX และไม่มี native ABI dependency
+- รับ JPEG ใน EOS segment 1/11 และ segment 9 **เฉพาะเมื่อข้อมูลข้างในเป็น JPEG จริง**
+- segment 9 แบบ RAW/non-JPEG ยังแสดงไม่ได้ จะแจ้งข้อจำกัด ไม่สร้างภาพจำลองแทน
+- โหมดวิดีโอและการส่งภาพขณะ REC **ยังต้องทดสอบกับ 600D จริง** ถ้ากล้องหยุดส่งเฟรม แอปแสดงป้ายภาพค้าง
+- ลองเริ่มมอนิเตอร์ก่อนเริ่ม REC แล้วควบคุม REC ที่ตัวกล้อง การส่งเฟรมต่อเนื่องระหว่างบันทึกไม่รับประกันทุกโหมด
+- fps คืออัตราเฟรมที่แสดงบนมือถือ ไม่ใช่ fps ที่เซ็นเซอร์อ่านหรือเฟรมที่บันทึกลง MOV
+- เป็นภาพตัวอย่างที่มีความหน่วง ไม่ใช่ Full HD/4K monitor ที่รับรองความละเอียดหรือ latency
+
+## การดาวน์โหลดหลายภาพ
+
+เลือกได้ไม่เกิน 80 ภาพต่อชุด เลือกโฟลเดอร์ปลายทางผ่าน Android **ครั้งเดียวต่อชุด**
+แอปจะอ่านและบันทึกทีละไฟล์ตามคิว USB ไม่เปิดหลาย PTP transactions พร้อมกัน ไม่ลบต้นฉบับ
+มีจำนวนที่เสร็จ/ล้มเหลว และหยุดหลังไฟล์ปัจจุบันได้ ภาพที่ยังไม่สำเร็จยังคงถูกเลือกเพื่อให้ลองใหม่
+JPEG ที่ส่งออกเป็นไฟล์ต้นฉบับพร้อม EXIF ไม่บีบอัดภาพใหม่
+
+## อุปกรณ์และข้อจำกัด
+
+Android 8+ ที่รองรับ USB Host/OTG, WebView ที่อัปเดต, OTG ตรงพอร์ต และสาย USB **Mini-B ที่ส่งข้อมูลได้**
+กล้องและมือถือใช้แบตเตอรี่ของตนเอง ใส่การ์ด JPEG หรือ RAW+JPEG ภาพเดี่ยว ใช้ P/Tv/Av/M ไม่ใช้ Bulb
+ถ้า AF ไม่ยอมถ่าย ให้ทดลองเลนส์ MF ก่อน
+แอปไม่เปลี่ยนค่าแสง/Picture Style ไม่เขียนเฟิร์มแวร์ และไม่ format การ์ด
+ไม่มี touch autofocus, USB movie recording, RAW/MLV download, LUT, Time-lapse หรือถ่ายคร่อม
+ยังไม่ยืนยันรองรับกล้องรุ่นอื่นหรือ ML ทุกบิลด์
+
+## บิลด์และทดสอบ
+
+Linux x86_64, Java 21+, Python 3.9+; Android API 35, build-tools 35.0.0, ECJ 3.39.0
+ไม่มี Gradle/AndroidX หรือ native ABI dependency
 
 ```sh
 python3 tools/setup-tools.py build/toolchain
@@ -59,32 +85,34 @@ bash test.sh
 bash build-android.sh
 ```
 
-ผลลัพธ์ `build/600D-Companion-0.1.1-prototype.apk`
-SDK และ compiler ดาวน์โหลดจากแหล่งทางการพร้อมตรวจ SHA-256 เครื่องมือยังอยู่ภายใต้ใบอนุญาตของแต่ละโครงการ
-กุญแจ prototype สร้างใน `build/` ซึ่งไม่เข้า Git ไม่ใช่กุญแจเผยแพร่ระยะยาว
+ผลลัพธ์ `build/600D-Companion-0.2.0-prototype.apk`
+กำหนด `TOOLCHAIN` เพื่อใช้ SDK/ECJ ที่มีอยู่แล้วได้ กุญแจ prototype อยู่ใน build/ ซึ่งไม่เข้า Git อย่าลบทิ้งถ้าต้องการเซ็นอัปเดตทับรุ่นของคุณต่อไป
+ถ้าบิลด์เองโดยไม่มี private key เดิม จะได้กุญแจของเครื่องคุณ ไม่ใช่ลายเซ็นของ APK ที่แจก
+SDK/ECJ มีใบอนุญาตของแต่ละโครงการแยกจากซอร์สแอป
 
-ดูเมนูบน browser (สาธิตเท่านั้น):
+ทดสอบเมนูด้วย browser (ใช้ได้เฉพาะสาธิต ไม่มี WebUSB):
 
 ```sh
 python3 -m http.server 8765 --directory app/src/main/assets
-# เปิด http://localhost:8765
-# อีก terminal ที่มี Node, Playwright และ Chromium:
+# อีก terminal ที่ติดตั้ง Node, Playwright, Chromium แล้ว:
 NODE_PATH=/path/to/node_modules node tests/ui.cjs
 ```
 
-กำหนด `TOOLCHAIN`, `SDK_PLATFORM`, `BUILD_TOOLS`, `ECJ_JAR`, `CHROMIUM_PATH` และ `PREVIEW_URL` เพื่อใช้เครื่องมือที่มีอยู่ได้
+ปรับ `PREVIEW_URL` / `CHROMIUM_PATH` ให้ตรงเครื่องได้
+0.2.0 มี 41 PTP assertions, 40 EOS/cache assertions และ 2,000 malformed parser cases พร้อม browser flow tests
+USB permissions, Android folder picker, lifecycle, camera output/AF/recording และประสิทธิภาพจริงยังต้องทดสอบบนอุปกรณ์
 
 ## ที่มาและใบอนุญาต
 
-แยกแนวคิดและต้นแบบ Android ออกจาก [โครงการเฟิร์มแวร์ Canon 600D Photo UI](https://github.com/itsamachom/EOS_ROM_MLV_Modify)
-repository นี้มีเฉพาะแอป Android ไม่มี AUTOEXEC.BIN, FIR, Canon ROM หรือซอร์สเฟิร์มแวร์ ML
+โครงการ Android แยกจาก [EOS_ROM_MLV_Modify](https://github.com/itsamachom/EOS_ROM_MLV_Modify)
+ไม่มี ML/Canon firmware, ROM, cloud credential หรือ private signing key รวมใน repository
+PTP/EOS implementation เขียนใหม่เพื่อ interoperability ไม่รวม libgphoto2; ตรวจ operation/property และลำดับจาก:
 
-PTP implementation เขียนใหม่ ไม่บรรจุ libgphoto2; อ้างอิงข้อเท็จจริงของโปรโตคอลจาก:
+- [library.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/library.c): 600D USB ID, shutter event handling, EVF setup และ frame segments
+- [ptp.h](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/ptp.h): PTP/EOS identifiers
+- [ptp.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/ptp.c): EOS property data-out layout และ GetViewFinderData arguments
+- [ptp-pack.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/ptp-pack.c): event layout / CameraStatusChanged
+- [config.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/config.c): property types และ recording status
 
-- [libgphoto2 library.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/library.c): 600D VID/PID และลำดับ remote shutter
-- [ptp.h](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/ptp.h): operation/property identifiers
-- [ptp-pack.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/ptp-pack.c): EOS property event layout
-- [config.c](https://github.com/gphoto/libgphoto2/blob/master/camlibs/ptp2/config.c): การแปลค่ากล้อง
-
-ซอร์สแอปใช้ [MIT License](LICENSE) ไม่ได้เปลี่ยนใบอนุญาตของเฟิร์มแวร์เดิมหรือไลบรารีภายนอก
-มี Codex/LLM ช่วยพัฒนาและตรวจ เป็นโครงการอิสระ ไม่ใช่ Canon Camera Connect และไม่ได้รับการรับรองจาก Canon/Magic Lantern/libgphoto2
+ซอร์สแอปใช้ [MIT](LICENSE) มี Codex/LLM ช่วยพัฒนา/ตรวจ ไม่ใช่ Canon Camera Connect และไม่ได้รับการรับรองจาก Canon/Magic Lantern/libgphoto2
+[0.1.1 เดิม](downloads/0.1.1/) ยังคงอยู่เพื่ออ้างอิงและย้อนกลับ

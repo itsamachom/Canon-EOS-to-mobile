@@ -6,6 +6,7 @@ SDK_PLATFORM="${SDK_PLATFORM:-$TOOLCHAIN/android-35}"
 BUILD_TOOLS="${BUILD_TOOLS:-$TOOLCHAIN/android-15}"
 ECJ_JAR="${ECJ_JAR:-$TOOLCHAIN/ecj.jar}"
 OUT="$PWD/build"
+rm -rf "$OUT/classes" "$OUT/dex"
 mkdir -p "$OUT/classes" "$OUT/dex"
 rm -f "$OUT/resources.zip" "$OUT/unsigned.apk" "$OUT/aligned.apk"
 "$BUILD_TOOLS/aapt2" compile --dir app/src/main/res -o "$OUT/resources.zip"
@@ -24,6 +25,6 @@ PY
 if [[ ! -f "$OUT/prototype.keystore" ]]; then
   keytool -genkeypair -keystore "$OUT/prototype.keystore" -storepass android -keypass android -alias prototype -keyalg RSA -keysize 2048 -validity 3650 -dname 'CN=600D Companion Prototype' >/dev/null 2>&1
 fi
-"$BUILD_TOOLS/apksigner" sign --ks "$OUT/prototype.keystore" --ks-pass pass:android --key-pass pass:android --ks-key-alias prototype --out "$OUT/600D-Companion-0.1.1-prototype.apk" "$OUT/aligned.apk"
-"$BUILD_TOOLS/apksigner" verify --verbose "$OUT/600D-Companion-0.1.1-prototype.apk"
-"$BUILD_TOOLS/aapt2" dump badging "$OUT/600D-Companion-0.1.1-prototype.apk" | head -6
+"$BUILD_TOOLS/apksigner" sign --ks "$OUT/prototype.keystore" --ks-pass pass:android --key-pass pass:android --ks-key-alias prototype --out "$OUT/600D-Companion-0.2.0-prototype.apk" "$OUT/aligned.apk"
+"$BUILD_TOOLS/apksigner" verify --verbose "$OUT/600D-Companion-0.2.0-prototype.apk"
+"$BUILD_TOOLS/aapt2" dump badging "$OUT/600D-Companion-0.2.0-prototype.apk" | head -6

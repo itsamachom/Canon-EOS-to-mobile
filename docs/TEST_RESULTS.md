@@ -1,22 +1,17 @@
-# Validation — 15 November 2026 / 0.1.1-prototype
+# Validation — 0.2.0-prototype / 15 November 2026
 
-Standalone migration build; reconstructed from the previous conversation after the unsent local workspace was lost. See MIGRATION.md.
+## Passed on the computer
 
-## Passed on the build computer
+- 41 PTP assertions: fragmented/coalesced/zero-length reads, partial writes, transaction IDs, streamed JPEG-sized payloads, strict bounds, EOS uint16/padding handling, property data-out transactions and diagnostic observations.
+- 40 EOS/cache assertions: two captures without reconnect, P/Tv/Av/M, busy-ready waiting, no automatic shutter retry, full/half cleanup after failure, drain between release operations, forbidden mode guard, EVF start/restore/partial rollback, movie-mode busy setup, preserve external changes and recording/unknown-state EVF, frame segments 1/9-JPEG/11, busy/not-ready frames, reject non-JPEG/invalid lengths, token-only private cache access.
+- 2,000 deterministic malformed datasets handled with bounded parser failures.
+- Chromium/Playwright: four tabs without Guide; immediate shutter state and second explicit capture after completion; 3-column phone grid; progressive thumbnail updates; multi-select payload; folder batch callbacks/cancel-after-file/retained selection; original preview distinct from thumbnail; fit/100%; Live View ACK, stale overlay, late/stale-stream rejection; erase demo data/stop demo timer on real connection; 320/390/600/900 px and landscape 844×390; four screenshots.
+- Compile against Android API 35 using ECJ 3.39.0, dex/package with build-tools 35.0.0. APK v2/v3 signatures verified.
+- Certificate SHA-256 matches published 0.1.1. VersionCode increases 2→3. No private key in Git/source archive.
+- No INTERNET, CAMERA, audio, or broad storage permission. App-local WebView HTTPS resources are served by an interceptor; document export uses Android folder selection.
 
-- ECJ 3.39.0 compiles all Java sources against Android API 35; Android build-tools 35.0.0 builds an installable APK package.
-- apksigner verifies APK v2/v3 signatures. Application ID art.photoui.companion; versionCode 2; min SDK 26, target SDK 35.
-- No INTERNET, CAMERA, or broad storage permissions declared. USB permission is requested through Android USB Host; JPEG export uses the document picker.
-- 37 PTP assertions: unsigned values, fragmented/coalesced input, zero-length packet handling, partial writes, streaming payload, response rejection, transaction mismatch, size limits, disconnect mid-header, OpenSession ID zero, dataset bounds, EOS event parsing, filenames, capture guards, and full/half shutter release after rejection without capture retry.
-- 2,000 deterministic malformed parser datasets handled without unchecked bounds failures.
-- Headless Chromium/Playwright checks: demo navigation/capture/photos, simulated Java bridge calls, absent capture capability, busy/disconnect state, late values ignored after disconnect, untrusted filenames rendered as text, overflow checks at 320/390/600/900 px, shutter visible above bottom navigation at 390×844.
-- Four screenshots regenerated from the same bundled HTML. These are browser screenshots; values and cup illustration in demo mode are synthetic.
+## Not verified
 
-## Not yet tested
+Physical Android or emulator runtime of 0.2.0; actual resolution of the reported one-shot issue; USB permission/OTG/lifecycle; real camera AF/busy/file completion; real multiple JPEG transfers; original JPEG quality; Android document provider behavior and failed-write cleanup; EVF property acceptance/restore; still/movie/REC frame formats; latency/FPS; ML compatibility.
 
-- Installation and runtime on Android hardware or Android emulator.
-- USB permission/attach/detach lifecycle, WebView-to-Java integration, and Android document export on a physical phone.
-- Real 600D 1.0.2 commands/property events, one exposure per request, actual on-card write completion, JPEG integrity and transfer speed.
-- Reconnect, background/termination, sleep, cable loss during transfers, multiple phone/OTG combinations, and coexistence with Magic Lantern.
-
-Compilation reports seven Android compatibility deprecation warnings; no errors. No verification checks were disabled. Tests on the computer do not establish camera compatibility.
+Fake transports and browser bridge mocks are not a camera test. Screenshots contain marked synthetic scenes, not photographs or actual Canon performance measurements. Seven compatibility deprecation warnings remain in the Android Activity; no compiler errors or disabled verification checks.
