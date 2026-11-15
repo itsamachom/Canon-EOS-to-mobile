@@ -1,0 +1,39 @@
+{
+  "version": "0.3.0-prototype",
+  "version_code": 4,
+  "package": "art.photoui.companion",
+  "repository": "https://github.com/itsamachom/Canon-EOS-to-mobile",
+  "source_commit": "a94727f97a71e5a69c0759fd7465239bd384e085",
+  "created_utc": "2026-11-15T16:41:02.326782+00:00",
+  "min_android_api": 26,
+  "target_android_api": 35,
+  "build_tools": "35.0.0",
+  "java_compiler": "ECJ 3.39.0",
+  "physical_android_tested": false,
+  "android_emulator_tested": false,
+  "physical_camera_tested": false,
+  "previous_user_feedback": "0.2.0 Live View feels laggy; 0.3.0 physical speed/settings require device retest",
+  "signing_certificate_sha256": "396b7327295a4cf19c75b5278a1e63b49b221fa400947f02d29037e2ec11d757",
+  "signer_matches_published_0_1_1": true,
+  "signing": "prototype key; private key not included",
+  "verification": {
+    "ptp_assertions": 44,
+    "eos_cache_assertions": 40,
+    "live_settings_assertions": 44,
+    "malformed_parser_cases": 2000,
+    "browser_menu_tests": {
+      "passed": true,
+      "version": "0.3.0",
+      "viewports": 5,
+      "screenshots": 4,
+      "hardware": false
+    },
+    "apk_v2_v3_signature": "verified"
+  },
+  "target_live_fps": 24,
+  "hardware_24fps_verified": false,
+  "frame_transport": "latest-only app-local in-memory JPEG; no Base64; no-store",
+  "live_view": "EOS JPEG segments 1/11 and JPEG-in-9; non-JPEG segment 9 unsupported; streaming during video recording not hardware verified",
+  "apk_sha256": "a8120811c64f21cded45c1d0976c3c85de7143525673ffb0d126c0677cd89d03",
+  "license": "MIT"
+}
